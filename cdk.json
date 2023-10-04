@@ -1,0 +1,8 @@
+{
+  "app": "gradle --stacktrace run",
+  "build": "gradle build",
+  "context": {
+    "aws-cdk:enableDiffNoFail": "true"
+  },
+  "debug": "true"
+}
