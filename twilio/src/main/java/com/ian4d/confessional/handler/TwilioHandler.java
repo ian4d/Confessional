@@ -8,11 +8,17 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
+import com.fasterxml.jackson.databind.ser.std.StdKeySerializers;
 import com.twilio.Twilio;
 import com.twilio.twiml.VoiceResponse;
 import com.twilio.twiml.voice.Hangup;
 import com.twilio.twiml.voice.Record;
 import com.twilio.twiml.voice.Say;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import java.util.Collections;
 
@@ -24,16 +30,23 @@ public class TwilioHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIG
 
     @Override
     public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent input, Context context) {
+
         // Use <Say> to give the caller some instructions
         Say instructions = new Say.Builder("Hello. Please leave a message after the beep.").build();
-
 
         int secondsOfSilenceToEndCall = 0;
         String characterToEndCall = "#";
         int maxLengthToRecordInSeconds = 120;
         boolean playBeep = true;
 
-        Twilio.init(System.getenv("TWILIO_ACCOUNT_SID"), System.getenv("TWILIO_AUTH_TOKEN"));
+        // TODO: May need to edit resource policy of secrets to allow lambda to read them
+        SecretsManagerClient secretsManagerClient = SecretsManagerClient.builder()
+                .region(Region.of(System.getenv("AWS_REGION")))
+                .credentialsProvider(DefaultCredentialsProvider.create())
+                .build();
+        String twilioSID = loadSecretValue("TWILIO_ACCOUNT_SID", secretsManagerClient);
+        String twilioAuthToken = loadSecretValue("TWILIO_AUTH_TOKEN", secretsManagerClient);
+        Twilio.init(twilioSID, twilioAuthToken);
 
         // Use <Record> to record the caller's message
         Record record = new Record.Builder()
@@ -61,5 +74,13 @@ public class TwilioHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIG
                 ))
                 .build();
         return apiResponse;
+    }
+
+    String loadSecretValue(String secretId, SecretsManagerClient secretsManagerClient) {
+        GetSecretValueRequest getSecretValueRequest = GetSecretValueRequest.builder()
+                .secretId(secretId)
+                .build();
+        GetSecretValueResponse getSecretValueResponse = secretsManagerClient.getSecretValue(getSecretValueRequest);
+        return getSecretValueResponse.secretString();
     }
 }

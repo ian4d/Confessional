@@ -35,9 +35,7 @@ public class AudioConversionHandler implements RequestHandler<S3Event, Void> {
 
     @Override
     public Void handleRequest(S3Event input, Context context) {
-
         logger.info("s3Event: {}", gson.toJson(input));
-
         input.getRecords().stream()
                 .filter(record -> "ObjectCreated:Put".equals(record.getEventName()))
                 .map(S3EventNotification.S3EventNotificationRecord::getS3)
@@ -48,8 +46,6 @@ public class AudioConversionHandler implements RequestHandler<S3Event, Void> {
     void processEntity(S3EventNotification.S3Entity entity) {
         String bucketName = entity.getBucket().getName();
         String objectKey = entity.getObject().getKey();
-
-
         logger.info("Bucket: {}", bucketName);
         logger.info("Key: {}", objectKey);
 
@@ -145,6 +141,10 @@ public class AudioConversionHandler implements RequestHandler<S3Event, Void> {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+
+        // TODO: Delete original uncompressed audio file in S3!
+
     }
 
     PresignedPutObjectRequest generatePresignPutObjectRequest(String bucketName, String objectKey, S3Presigner presigner) {
